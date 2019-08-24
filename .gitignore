@@ -1,3 +1,9 @@
+# Basics
+*.gitignore
+*.DS_Store
+*/bmp.h
+
+
 # Prerequisites
 *.d
 
