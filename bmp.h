@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 
 // BMP struct with minimal data required
@@ -14,7 +16,22 @@ typedef struct bmp bmp;
 
 
 
-bmp readbmp(const char* impath){
+bmp bmpcpy(bmp original){
+	// Copy the values of the struct over
+	bmp newbmp = original;
+	
+	// Create a new memory block for the copy bmp
+	size_t size = newbmp.w * newbmp.h * newbmp.bpp;
+	newbmp.px = malloc(sizeof(unsigned char) * size);
+	memcpy(newbmp.px, original.px, size);
+	
+	return newbmp;
+}
+
+
+
+
+bmp bmpread(const char* impath){
 	// Init the struct returned
 	bmp output;
 	output.px = NULL;
@@ -140,7 +157,7 @@ bmp readbmp(const char* impath){
 
 
 
-int writebmp(bmp img, const char* impath){
+int bmpwrite(bmp img, const char* impath){
 	// Write a bmp struct with RGBA format to file
 	
 
@@ -228,8 +245,51 @@ int writebmp(bmp img, const char* impath){
 	fclose(fp);
 	
 	
-	//return succcessfully
+	//return succcess
 	return 0;
+}
+
+
+
+
+bmp bmpblur(bmp input, int r){
+	// Create the return value
+	bmp output = bmpcpy(input); int found = 0;
+	
+	for (int i = 0; i < input.h; i++){
+		for (int j = 0; j < input.w; j++){
+			int pindex = i*input.w*input.bpp + j*input.bpp;
+			//Loop over channels
+			for (int k = 0; k < input.bpp; k++){
+			
+				// Initialize the total weight to zero
+				double total_w = 0;
+				double total = 0;
+				int cindex = pindex + k;
+				
+				// Loop over the kernal
+				for (int ri = -r; ri <= r; ri++){
+					if (ri+i < 0  || ri+i >= input.h) continue; //skip if outside image
+					for (int rj = -r; rj <= r; rj++){
+						if (rj+j < 0  || rj+j >= input.w) continue; //skip if outside image
+						
+						// Calucate contribution of pixel
+						double w = exp(-(ri*ri+rj*rj)/(2*(double)r*r))/sqrt(2*M_PI*r*r); // Gaussian blur
+						if(k != 3) w *= (double)input.px[pindex + ri*input.w*input.bpp + rj*input.bpp + 3]; // weight also using alpha (TODO: non-alpha)
+						total_w += w; // Keep track to normalize weights
+						// Add the weight pixel
+						total += w * (double)input.px[cindex + ri*input.w*input.bpp + rj*input.bpp];
+					}
+				}
+				
+				if (fabs(total_w) > 0.0001) total /= total_w; // will only skip if fully transparent
+				// Update the pixel
+				output.px[cindex] = (unsigned char) round(total);
+			}
+		}
+	}
+	
+	return output;
 }
 
 
